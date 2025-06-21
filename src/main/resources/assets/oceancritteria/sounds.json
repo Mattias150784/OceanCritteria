@@ -1,0 +1,8 @@
+{
+  "item.penguin_beak.honk": {
+    "subtitle": "subtitles.oceancritteria.item.penguin_beak.honk",
+    "sounds": [
+      "oceancritteria:item/penguin_beak_honk"
+    ]
+  }
+}

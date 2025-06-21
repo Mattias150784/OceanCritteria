@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "F": {
+      "item": "minecraft:flint"
+    },
+    "P": {
+      "item": "oceancritteria:penguin_feather"
+    },
+    "S": {
+      "item": "minecraft:stick"
+    }
+  },
+  "pattern": [
+    "F",
+    "S",
+    "P"
+  ],
+  "result": {
+    "item": "oceancritteria:ice_arrow"
+  },
+  "show_notification": true
+}

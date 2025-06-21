@@ -1,0 +1,16 @@
+{
+  "item.oceancritteria.penguin_feather": "Penguin Feather",
+  "item.oceancritteria.penguin_spawn_egg": "Penguin Spawn Egg",
+
+
+
+  "item.oceancritteria.ice_arrow": "Ice Arrow",
+
+  "item.oceancritteria.penguin_beak": "Penguin Beak",
+  "subtitles.oceancritteria.item.penguin_beak.honk": "Penguin Beak honks",
+
+
+
+  "effect.oceancritteria.frozen_by_arrow": "Frozen by Ice Arrow",
+  "creativetab.ocean_critteria_tab": "Ocean Critteria"
+}
