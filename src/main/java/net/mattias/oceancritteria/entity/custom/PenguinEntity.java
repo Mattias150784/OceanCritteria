@@ -23,9 +23,10 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class PenguinEntity extends Animal {
+public class PenguinEntity extends BaseAmphibian {
     public PenguinEntity(EntityType<? extends Animal> pEntityType, Level pLevel) {
         super(pEntityType, pLevel);
         this.setMaxUpStep(1.0F);
@@ -42,27 +43,10 @@ public class PenguinEntity extends Animal {
         if (this.level().isClientSide()) {
             setupAnimationStates();
         }
-
-        if (!this.level().isClientSide()) {
-            if (this.isUnderWater()) {
-                BlockPos headPos = this.blockPosition().above();
-                if (this.level().getFluidState(headPos).is(FluidTags.WATER)) {
-                    this.setAirSupply(this.getAirSupply() - 1);
-                    if (this.getAirSupply() == -20) {
-                        this.setAirSupply(0);
-                        this.hurt(this.damageSources().drown(), 2.0F);
-                    }
-                } else {
-                    this.setAirSupply(this.getMaxAirSupply());
-                }
-            } else {
-                this.setAirSupply(this.getMaxAirSupply());
-            }
-        }
     }
 
     private void setupAnimationStates() {
-        if (this.isUnderWater() || (this.isInWater() && !this.onGround())) {
+        if (this.isInWater()) {
             this.idleAnimationState.stop();
             this.swimAnimationState.startIfStopped(this.tickCount);
         } else {
@@ -83,7 +67,7 @@ public class PenguinEntity extends Animal {
 
     @Override
     protected float getWaterSlowDown() {
-        return 0.9F;
+        return 0.98F;
     }
 
     @Override
@@ -93,38 +77,34 @@ public class PenguinEntity extends Animal {
 
     @Override
     protected void registerGoals() {
-        this.goalSelector.addGoal(0, new PenguinGoToSurfaceGoal(this, 2.0D));
-        this.goalSelector.addGoal(1, new PenguinSwimGoal(this, 1.2D));
-        this.goalSelector.addGoal(2, new PanicGoal(this, 1.5D));
-        this.goalSelector.addGoal(3, new BreedGoal(this, 1.15D));
-        this.goalSelector.addGoal(4, new TemptGoal(this, 1.0D,
+        this.goalSelector.addGoal(0, new PenguinGoToSurfaceGoal(this, 1.8D));
+        this.goalSelector.addGoal(1, new PanicGoal(this, 1.6D));
+        this.goalSelector.addGoal(2, new BreedGoal(this, 1.0D));
+        this.goalSelector.addGoal(3, new TemptGoal(this, 1.2D,
                 Ingredient.of(Items.COD, Items.SALMON, Items.COOKED_SALMON, Items.COOKED_COD), false));
-        this.goalSelector.addGoal(5, new FollowParentGoal(this, 1.1D));
-        this.goalSelector.addGoal(6, new PenguinGoToLandGoal(this, 1.2D));
-        this.goalSelector.addGoal(7, new PenguinGoToWaterGoal(this, 1.0D));
-        this.goalSelector.addGoal(8, new PenguinLandStrollGoal(this));
-        this.goalSelector.addGoal(9, new AvoidEntityGoal(this, PolarBear.class, 8.0F, 1.0F, 1.0F));
-        this.goalSelector.addGoal(10, new LookAtPlayerGoal(this, Player.class, 3f));
+        this.goalSelector.addGoal(4, new FollowParentGoal(this, 1.25D));
+        this.goalSelector.addGoal(5, new AvoidEntityGoal<>(this, PolarBear.class, 6.0F, 1.2D, 1.6D));
+        this.goalSelector.addGoal(6, new PenguinSwimGoal(this, 1.0D));
+        this.goalSelector.addGoal(7, new PenguinGoToLandGoal(this, 1.0D));
+        this.goalSelector.addGoal(8, new PenguinGoToWaterGoal(this, 1.0D));
+        this.goalSelector.addGoal(9, new PenguinLandStrollGoal(this));
+        this.goalSelector.addGoal(10, new LookAtPlayerGoal(this, Player.class, 6f));
         this.goalSelector.addGoal(11, new RandomLookAroundGoal(this));
     }
 
     public static AttributeSupplier.Builder createAttributes() {
         return Animal.createLivingAttributes()
                 .add(Attributes.MAX_HEALTH, 10D)
-                .add(Attributes.MOVEMENT_SPEED, 0.22D)
+                .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.FOLLOW_RANGE, 24D);
     }
 
     @Override
-    public void travel(Vec3 pTravelVector) {
+    public void travel(@NotNull Vec3 pTravelVector) {
         if (this.isEffectiveAi() && this.isInWater()) {
-            this.moveRelative(this.getSpeed() * 0.25F, pTravelVector);
+            this.moveRelative(this.getSpeed(), pTravelVector);
             this.move(MoverType.SELF, this.getDeltaMovement());
-            this.setDeltaMovement(
-                    this.getDeltaMovement().x * 0.85D,
-                    this.getDeltaMovement().y * 0.98D,
-                    this.getDeltaMovement().z * 0.85D
-            );
+            this.setDeltaMovement(this.getDeltaMovement().scale(0.9D));
         } else {
             super.travel(pTravelVector);
         }
@@ -132,7 +112,7 @@ public class PenguinEntity extends Animal {
 
     @Override
     public int getMaxAirSupply() {
-        return 200; // 10 seconds
+        return 4800;
     }
 
     @Nullable
@@ -146,8 +126,6 @@ public class PenguinEntity extends Animal {
         return pStack.is(Items.COD) || pStack.is(Items.SALMON) ||
                 pStack.is(Items.COOKED_COD) || pStack.is(Items.COOKED_SALMON);
     }
-
-    // The sounds are temporary until I get custom Penguin sounds
 
     @Nullable
     @Override
@@ -171,7 +149,7 @@ public class PenguinEntity extends Animal {
     public float getSpeed() {
         float baseSpeed = (float) this.getAttributeValue(Attributes.MOVEMENT_SPEED);
         if (this.isInWater()) {
-            return baseSpeed * 1.8F;
+            return baseSpeed * 1.5F;
         }
         return baseSpeed;
     }
