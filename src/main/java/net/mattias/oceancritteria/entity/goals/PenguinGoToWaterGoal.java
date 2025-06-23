@@ -4,7 +4,6 @@ import net.mattias.oceancritteria.entity.custom.PenguinEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.level.pathfinder.Path;
 
 import javax.annotation.Nullable;
 import java.util.EnumSet;
@@ -28,19 +27,19 @@ public class PenguinGoToWaterGoal extends Goal {
             return false;
         }
 
-        if (!this.penguin.isInWater() && this.penguin.getRandom().nextInt(100) == 0) {
+        if (!this.penguin.isInWater() && this.penguin.getRandom().nextInt(150) == 0) {
             this.targetWaterPos = this.findNearestWater();
-            if (this.targetWaterPos != null) {
-                Path path = this.penguin.getNavigation().createPath(this.targetWaterPos, 1);
-                return path != null;
-            }
+            return this.targetWaterPos != null;
         }
         return false;
     }
 
     @Override
     public boolean canContinueToUse() {
-        return !this.penguin.getNavigation().isDone() && !this.penguin.isInWater();
+        return this.targetWaterPos != null &&
+                !this.penguin.getNavigation().isDone() &&
+                !this.penguin.isInWater() &&
+                this.penguin.distanceToSqr(this.targetWaterPos.getX(), this.targetWaterPos.getY(), this.targetWaterPos.getZ()) > 2.0;
     }
 
     @Override
@@ -58,7 +57,7 @@ public class PenguinGoToWaterGoal extends Goal {
     @Override
     public void stop() {
         this.penguin.getNavigation().stop();
-        this.cooldown = 120;
+        this.cooldown = 180;
         this.targetWaterPos = null;
     }
 
@@ -68,12 +67,13 @@ public class PenguinGoToWaterGoal extends Goal {
         BlockPos bestPos = null;
         double bestDistance = Double.MAX_VALUE;
 
-        for (int x = -10; x <= 10; x++) {
-            for (int z = -10; z <= 10; z++) {
-                for (int y = -3; y <= 3; y++) {
+        for (int x = -8; x <= 8; x++) {
+            for (int z = -8; z <= 8; z++) {
+                for (int y = -2; y <= 2; y++) {
                     BlockPos checkPos = penguinPos.offset(x, y, z);
 
-                    if (this.penguin.level().getFluidState(checkPos).is(FluidTags.WATER)) {
+                    if (this.penguin.level().getFluidState(checkPos).is(FluidTags.WATER) &&
+                            this.penguin.level().getFluidState(checkPos.above()).is(FluidTags.WATER)) {
                         double distance = penguinPos.distSqr(checkPos);
                         if (distance < bestDistance) {
                             bestDistance = distance;

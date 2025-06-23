@@ -26,7 +26,7 @@ public class PenguinGoToLandGoal extends Goal {
             return false;
         }
 
-        if (this.penguin.isInWater() && this.penguin.getRandom().nextInt(40) == 0) {
+        if (this.penguin.isInWater() && this.penguin.getRandom().nextInt(200) == 0) {
             this.targetLandPos = this.findNearestLand();
             return this.targetLandPos != null;
         }
@@ -35,7 +35,9 @@ public class PenguinGoToLandGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return !this.penguin.getNavigation().isDone() && this.penguin.isInWater();
+        return this.targetLandPos != null &&
+                !this.penguin.getNavigation().isDone() &&
+                this.penguin.distanceToSqr(this.targetLandPos.getX(), this.targetLandPos.getY(), this.targetLandPos.getZ()) > 4.0;
     }
 
     @Override
@@ -53,7 +55,7 @@ public class PenguinGoToLandGoal extends Goal {
     @Override
     public void stop() {
         this.penguin.getNavigation().stop();
-        this.cooldown = 120;
+        this.cooldown = 200;
         this.targetLandPos = null;
     }
 
@@ -63,12 +65,12 @@ public class PenguinGoToLandGoal extends Goal {
         BlockPos bestPos = null;
         double closestDistance = Double.MAX_VALUE;
 
-        for (int radius = 3; radius <= 12; radius += 3) {
+        for (int radius = 2; radius <= 8; radius += 2) {
             for (int x = -radius; x <= radius; x++) {
                 for (int z = -radius; z <= radius; z++) {
                     if (Math.abs(x) != radius && Math.abs(z) != radius) continue;
 
-                    for (int y = -2; y <= 4; y++) {
+                    for (int y = -2; y <= 3; y++) {
                         BlockPos checkPos = penguinPos.offset(x, y, z);
 
                         if (isValidLandPosition(checkPos)) {
@@ -92,6 +94,6 @@ public class PenguinGoToLandGoal extends Goal {
         return this.penguin.level().getBlockState(below).isSolidRender(this.penguin.level(), below) &&
                 this.penguin.level().getBlockState(pos).isAir() &&
                 this.penguin.level().getBlockState(pos.above()).isAir() &&
-                !this.penguin.level().getFluidState(pos).isEmpty() == false;
+                this.penguin.level().getFluidState(pos).isEmpty();
     }
 }

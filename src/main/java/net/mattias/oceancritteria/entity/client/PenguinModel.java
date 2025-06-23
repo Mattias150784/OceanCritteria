@@ -104,11 +104,37 @@ public class PenguinModel<T extends Entity> extends HierarchicalModel<T> {
 		this.applyHeadRotation(netHeadYaw, headPitch, ageInTicks);
 
 		if (entity.isInWater()) {
-			this.animate(((PenguinEntity) entity).swimAnimationState, ModAnimationDefinitions.PENGUIN_SWIM, ageInTicks, 1f);
+			boolean isResurfacing = entity.getDeltaMovement().y > 0.1 && isNearWaterSurface((PenguinEntity) entity);
+			if (isResurfacing) this.applyResurfacingPose(ageInTicks);
+			else this.animate(((PenguinEntity) entity).swimAnimationState, ModAnimationDefinitions.PENGUIN_SWIM, ageInTicks, 1f);
 		} else {
 			this.animateWalk(ModAnimationDefinitions.PENGUIN_WALK, limbSwing, limbSwingAmount, 2f, 2.5f);
 			this.animate(((PenguinEntity) entity).idleAnimationState, ModAnimationDefinitions.PENGUIN_IDLE, ageInTicks, 1f);
 		}
+	}
+
+	private boolean isNearWaterSurface(PenguinEntity penguin) {
+		return penguin.level().getBlockState(penguin.blockPosition().above()).isAir() ||
+				penguin.level().getBlockState(penguin.blockPosition().above(2)).isAir();
+	}
+
+	private void applyResurfacingPose(float ageInTicks) {
+		float tiltAngle = (float) Math.PI / 4.0f;
+
+		float oscillation = Mth.sin(ageInTicks * 0.1f) * 0.05f;
+		this.penguin.xRot = -tiltAngle + oscillation;
+
+		this.lw.zRot = -0.2f;
+		this.rw.zRot = 0.2f;
+
+		this.tail.xRot = 0.1f;
+
+		this.lf.xRot = 0.3f;
+		this.rf.xRot = 0.3f;
+
+		float wingFlap = Mth.sin(ageInTicks * 0.3f) * 0.15f;
+		this.lw.xRot = wingFlap;
+		this.rw.xRot = wingFlap;
 	}
 
 	private void applyHeadRotation(float pNetHeadYaw, float pHeadPitch, float pAgeInTicks) {
