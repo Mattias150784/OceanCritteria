@@ -25,8 +25,15 @@ public class PenguinGoToLandGoal extends Goal {
             --this.cooldown;
             return false;
         }
+        if (!this.penguin.isInWater()) {
+            return false;
+        }
 
-        if (this.penguin.isInWater() && this.penguin.getRandom().nextInt(200) == 0) {
+        boolean shouldGoToLand = this.penguin.getTimeInWater() > 1200 ||
+                this.penguin.getAirSupply() < 1200 ||
+                this.penguin.getRandom().nextInt(300) == 0;
+
+        if (shouldGoToLand) {
             this.targetLandPos = this.findNearestLand();
             return this.targetLandPos != null;
         }
@@ -37,6 +44,7 @@ public class PenguinGoToLandGoal extends Goal {
     public boolean canContinueToUse() {
         return this.targetLandPos != null &&
                 !this.penguin.getNavigation().isDone() &&
+                this.penguin.isInWater() && // Stop if we reached land
                 this.penguin.distanceToSqr(this.targetLandPos.getX(), this.targetLandPos.getY(), this.targetLandPos.getZ()) > 4.0;
     }
 
@@ -55,7 +63,7 @@ public class PenguinGoToLandGoal extends Goal {
     @Override
     public void stop() {
         this.penguin.getNavigation().stop();
-        this.cooldown = 200;
+        this.cooldown = 150;
         this.targetLandPos = null;
     }
 
@@ -65,12 +73,12 @@ public class PenguinGoToLandGoal extends Goal {
         BlockPos bestPos = null;
         double closestDistance = Double.MAX_VALUE;
 
-        for (int radius = 2; radius <= 8; radius += 2) {
+        for (int radius = 3; radius <= 15; radius += 3) {
             for (int x = -radius; x <= radius; x++) {
                 for (int z = -radius; z <= radius; z++) {
                     if (Math.abs(x) != radius && Math.abs(z) != radius) continue;
 
-                    for (int y = -2; y <= 3; y++) {
+                    for (int y = -2; y <= 4; y++) {
                         BlockPos checkPos = penguinPos.offset(x, y, z);
 
                         if (isValidLandPosition(checkPos)) {
@@ -91,9 +99,27 @@ public class PenguinGoToLandGoal extends Goal {
 
     private boolean isValidLandPosition(BlockPos pos) {
         BlockPos below = pos.below();
-        return this.penguin.level().getBlockState(below).isSolidRender(this.penguin.level(), below) &&
-                this.penguin.level().getBlockState(pos).isAir() &&
-                this.penguin.level().getBlockState(pos.above()).isAir() &&
-                this.penguin.level().getFluidState(pos).isEmpty();
+        boolean hasValidGround = this.penguin.level().getBlockState(below).isSolidRender(this.penguin.level(), below);
+        boolean hasSpace = this.penguin.level().getBlockState(pos).isAir() &&
+                this.penguin.level().getBlockState(pos.above()).isAir();
+        boolean isNotInWater = this.penguin.level().getFluidState(pos).isEmpty();
+
+        if (!hasValidGround || !hasSpace || !isNotInWater) {
+            return false;
+        }
+
+        boolean hasNearbyWater = false;
+        for (int dx = -3; dx <= 3 && !hasNearbyWater; dx++) {
+            for (int dz = -3; dz <= 3 && !hasNearbyWater; dz++) {
+                for (int dy = -2; dy <= 1 && !hasNearbyWater; dy++) {
+                    BlockPos nearbyPos = pos.offset(dx, dy, dz);
+                    if (this.penguin.level().getFluidState(nearbyPos).isSource()) {
+                        hasNearbyWater = true;
+                    }
+                }
+            }
+        }
+
+        return hasNearbyWater;
     }
 }

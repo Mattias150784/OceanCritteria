@@ -14,7 +14,7 @@ public class PenguinGoToSurfaceGoal extends Goal {
     private final double speed;
     private BlockPos targetSurfacePos;
 
-    private static final int AIR_THRESHOLD = 300; // 15 seconds
+    private static final int AIR_THRESHOLD = 600;
 
     public PenguinGoToSurfaceGoal(PenguinEntity penguin, double speed) {
         this.penguin = penguin;
@@ -35,49 +35,47 @@ public class PenguinGoToSurfaceGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return this.penguin.isUnderWater() && !canBreathe();
-    }
-
-    @Override
-    public boolean requiresUpdateEveryTick() {
-        return true;
+        return this.penguin.isUnderWater() &&
+                !canBreathe() &&
+                this.penguin.getAirSupply() < (AIR_THRESHOLD + 200);
     }
 
     @Override
     public void start() {
         this.targetSurfacePos = findNearestSurface();
+        if (this.targetSurfacePos != null) {
+            this.penguin.getNavigation().moveTo(
+                    this.targetSurfacePos.getX() + 0.5,
+                    this.targetSurfacePos.getY(),
+                    this.targetSurfacePos.getZ() + 0.5,
+                    this.speed
+            );
+        }
     }
 
     @Override
     public void tick() {
-        if (this.targetSurfacePos == null || this.penguin.tickCount % 20 == 0) {
-            this.targetSurfacePos = findNearestSurface();
+        if (this.penguin.tickCount % 40 == 0) {
+            BlockPos newTarget = findNearestSurface();
+            if (newTarget != null && !newTarget.equals(this.targetSurfacePos)) {
+                this.targetSurfacePos = newTarget;
+                this.penguin.getNavigation().moveTo(
+                        this.targetSurfacePos.getX() + 0.5,
+                        this.targetSurfacePos.getY(),
+                        this.targetSurfacePos.getZ() + 0.5,
+                        this.speed
+                );
+            }
         }
 
-        if (this.targetSurfacePos != null) {
-            this.penguin.getMoveControl().setWantedPosition(
-                    this.targetSurfacePos.getX() + 0.5,
-                    this.targetSurfacePos.getY() + 0.5,
-                    this.targetSurfacePos.getZ() + 0.5,
-                    this.speed * 1.5
-            );
-            this.penguin.getLookControl().setLookAt(
-                    this.targetSurfacePos.getX() + 0.5,
-                    this.targetSurfacePos.getY() + 1.0,
-                    this.targetSurfacePos.getZ() + 0.5
-            );
-        } else {
-            this.penguin.getMoveControl().setWantedPosition(
-                    this.penguin.getX(),
-                    this.penguin.getY() + 5,
-                    this.penguin.getZ(),
-                    this.speed * 1.5
-            );
-            this.penguin.getLookControl().setLookAt(
+        if (this.targetSurfacePos == null) {
+            this.penguin.getNavigation().moveTo(
                     this.penguin.getX(),
                     this.penguin.getY() + 10,
-                    this.penguin.getZ()
+                    this.penguin.getZ(),
+                    this.speed
             );
+            this.penguin.setXRot(45.0f);
         }
     }
 
@@ -91,19 +89,30 @@ public class PenguinGoToSurfaceGoal extends Goal {
     private BlockPos findNearestSurface() {
         Level level = this.penguin.level();
         BlockPos currentPos = this.penguin.blockPosition();
+        BlockPos bestSurface = null;
+        double closestDistance = Double.MAX_VALUE;
 
-        for (int yOffset = 0; yOffset < 15; yOffset++) {
-            for (int xOffset = -3; xOffset <= 3; xOffset++) {
-                for (int zOffset = -3; zOffset <= 3; zOffset++) {
+        for (int yOffset = 1; yOffset <= 20; yOffset++) {
+            for (int xOffset = -4; xOffset <= 4; xOffset++) {
+                for (int zOffset = -4; zOffset <= 4; zOffset++) {
                     BlockPos checkPos = currentPos.offset(xOffset, yOffset, zOffset);
 
                     if (level.getFluidState(checkPos).is(FluidTags.WATER) &&
                             !level.getFluidState(checkPos.above()).is(FluidTags.WATER)) {
-                        return checkPos;
+
+                        double distance = currentPos.distSqr(checkPos);
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            bestSurface = checkPos;
+                        }
                     }
                 }
             }
+            if (bestSurface != null) {
+                break;
+            }
         }
-        return null;
+
+        return bestSurface;
     }
 }

@@ -15,17 +15,22 @@ public class PenguinSwimGoal extends Goal {
     private final double speedModifier;
     private int interval;
     private Vec3 targetPos;
+    private int ticksRunning = 0;
 
     public PenguinSwimGoal(PenguinEntity penguin, double speedModifier) {
         this.penguin = penguin;
         this.speedModifier = speedModifier;
-        this.interval = 120;
+        this.interval = 80;
         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
     }
 
     @Override
     public boolean canUse() {
         if (!this.penguin.isInWater()) {
+            return false;
+        }
+
+        if (this.penguin.needsAir()) {
             return false;
         }
 
@@ -39,10 +44,14 @@ public class PenguinSwimGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return this.penguin.isInWater() &&
-                this.targetPos != null &&
+        if (!this.penguin.isInWater() || this.penguin.needsAir()) {
+            return false;
+        }
+
+        return this.targetPos != null &&
                 !this.penguin.getNavigation().isDone() &&
-                this.penguin.distanceToSqr(this.targetPos) > 4.0;
+                this.penguin.distanceToSqr(this.targetPos) > 2.0 &&
+                this.ticksRunning < 200;
     }
 
     @Override
@@ -50,22 +59,38 @@ public class PenguinSwimGoal extends Goal {
         if (this.targetPos != null) {
             this.penguin.getNavigation().moveTo(this.targetPos.x, this.targetPos.y, this.targetPos.z, this.speedModifier);
         }
+        this.ticksRunning = 0;
+    }
+
+    @Override
+    public void tick() {
+        this.ticksRunning++;
+
+        if (this.ticksRunning % 60 == 0) {
+            Vec3 newTarget = this.getRandomSwimPosition();
+            if (newTarget != null) {
+                this.targetPos = newTarget;
+                this.penguin.getNavigation().moveTo(this.targetPos.x, this.targetPos.y, this.targetPos.z, this.speedModifier);
+            }
+        }
     }
 
     @Override
     public void stop() {
         this.penguin.getNavigation().stop();
         this.targetPos = null;
+        this.ticksRunning = 0;
     }
 
     @Nullable
     private Vec3 getRandomSwimPosition() {
         Vec3 currentPos = this.penguin.position();
+        Level level = this.penguin.level();
 
-        for (int attempts = 0; attempts < 15; attempts++) {
-            double offsetX = (this.penguin.getRandom().nextDouble() * 16 - 8);
-            double offsetZ = (this.penguin.getRandom().nextDouble() * 16 - 8);
-            double offsetY = (this.penguin.getRandom().nextDouble() * 6 - 3);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            double offsetX = (this.penguin.getRandom().nextDouble() * 12 - 6);
+            double offsetZ = (this.penguin.getRandom().nextDouble() * 12 - 6);
+            double offsetY = (this.penguin.getRandom().nextDouble() * 4 - 2);
 
             Vec3 candidatePos = currentPos.add(offsetX, offsetY, offsetZ);
             BlockPos candidateBlock = BlockPos.containing(candidatePos);

@@ -36,6 +36,9 @@ public class PenguinEntity extends BaseAmphibian {
     public final AnimationState swimAnimationState = new AnimationState();
     private int idleAnimationTimeout = 0;
 
+    private int timeOnLand = 0;
+    private int timeInWater = 0;
+    private boolean needsAir = false;
     @Override
     public void tick() {
         super.tick();
@@ -43,6 +46,14 @@ public class PenguinEntity extends BaseAmphibian {
         if (this.level().isClientSide()) {
             setupAnimationStates();
         }
+        if (this.isInWater()) {
+            timeInWater++;
+            timeOnLand = 0;
+        } else {
+            timeOnLand++;
+            timeInWater = 0;
+        }
+        needsAir = this.getAirSupply() < 600;
     }
 
     private void setupAnimationStates() {
@@ -152,5 +163,17 @@ public class PenguinEntity extends BaseAmphibian {
             return baseSpeed * 1.5F;
         }
         return baseSpeed;
+    }
+
+    public int getTimeOnLand() {
+        return timeOnLand;
+    }
+
+    public int getTimeInWater() {
+        return timeInWater;
+    }
+
+    public boolean needsAir() {
+        return needsAir;
     }
 }

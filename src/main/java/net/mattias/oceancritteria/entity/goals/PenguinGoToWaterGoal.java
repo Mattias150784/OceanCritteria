@@ -27,7 +27,18 @@ public class PenguinGoToWaterGoal extends Goal {
             return false;
         }
 
-        if (!this.penguin.isInWater() && this.penguin.getRandom().nextInt(150) == 0) {
+        if (this.penguin.isInWater()) {
+            return false;
+        }
+
+        if (this.penguin.needsAir()) {
+            return false;
+        }
+
+        boolean shouldGoToWater = this.penguin.getTimeOnLand() > 600 ||
+                this.penguin.getRandom().nextInt(200) == 0;
+
+        if (shouldGoToWater) {
             this.targetWaterPos = this.findNearestWater();
             return this.targetWaterPos != null;
         }
@@ -57,7 +68,7 @@ public class PenguinGoToWaterGoal extends Goal {
     @Override
     public void stop() {
         this.penguin.getNavigation().stop();
-        this.cooldown = 180;
+        this.cooldown = 100;
         this.targetWaterPos = null;
     }
 
@@ -67,21 +78,27 @@ public class PenguinGoToWaterGoal extends Goal {
         BlockPos bestPos = null;
         double bestDistance = Double.MAX_VALUE;
 
-        for (int x = -8; x <= 8; x++) {
-            for (int z = -8; z <= 8; z++) {
-                for (int y = -2; y <= 2; y++) {
-                    BlockPos checkPos = penguinPos.offset(x, y, z);
+        for (int radius = 2; radius <= 12; radius += 2) {
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+                    if (Math.abs(x) != radius && Math.abs(z) != radius) continue;
 
-                    if (this.penguin.level().getFluidState(checkPos).is(FluidTags.WATER) &&
-                            this.penguin.level().getFluidState(checkPos.above()).is(FluidTags.WATER)) {
-                        double distance = penguinPos.distSqr(checkPos);
-                        if (distance < bestDistance) {
-                            bestDistance = distance;
-                            bestPos = checkPos;
+                    for (int y = -3; y <= 2; y++) {
+                        BlockPos checkPos = penguinPos.offset(x, y, z);
+
+                        if (this.penguin.level().getFluidState(checkPos).is(FluidTags.WATER) &&
+                                this.penguin.level().getFluidState(checkPos.above()).is(FluidTags.WATER)) {
+
+                            double distance = penguinPos.distSqr(checkPos);
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                bestPos = checkPos;
+                            }
                         }
                     }
                 }
             }
+            if (bestPos != null) break;
         }
 
         return bestPos;

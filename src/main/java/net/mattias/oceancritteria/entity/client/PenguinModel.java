@@ -9,6 +9,8 @@ import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 
@@ -98,46 +100,105 @@ public class PenguinModel<T extends Entity> extends HierarchicalModel<T> {
 		return LayerDefinition.create(meshdefinition, 64, 64);
 	}
 
-	@Override
-	public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-		this.root().getAllParts().forEach(ModelPart::resetPose);
-		this.applyHeadRotation(netHeadYaw, headPitch, ageInTicks);
+    @Override
+    public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
+        this.root().getAllParts().forEach(ModelPart::resetPose);
+        this.applyHeadRotation(netHeadYaw, headPitch, ageInTicks);
 
-		if (entity.isInWater()) {
-			boolean isResurfacing = entity.getDeltaMovement().y > 0.1 && isNearWaterSurface((PenguinEntity) entity);
-			if (isResurfacing) this.applyResurfacingPose(ageInTicks);
-			else this.animate(((PenguinEntity) entity).swimAnimationState, ModAnimationDefinitions.PENGUIN_SWIM, ageInTicks, 1f);
-		} else {
-			this.animateWalk(ModAnimationDefinitions.PENGUIN_WALK, limbSwing, limbSwingAmount, 2f, 2.5f);
-			this.animate(((PenguinEntity) entity).idleAnimationState, ModAnimationDefinitions.PENGUIN_IDLE, ageInTicks, 1f);
-		}
-	}
+        if (entity.isInWater()) {
+            boolean isResurfacing = entity.getDeltaMovement().y > 0.1 && isNearWaterSurface((PenguinEntity) entity);
+            boolean isDiving = entity.getDeltaMovement().y < -0.1 && !isNearWaterSurface((PenguinEntity) entity);
 
-	private boolean isNearWaterSurface(PenguinEntity penguin) {
-		return penguin.level().getBlockState(penguin.blockPosition().above()).isAir() ||
-				penguin.level().getBlockState(penguin.blockPosition().above(2)).isAir();
-	}
+            if (isResurfacing) {
+                this.applyResurfacingPose(ageInTicks);
+            } else if (isDiving) {
+                this.applyDivingPose(ageInTicks);
+            } else {
+                this.animate(((PenguinEntity) entity).swimAnimationState, ModAnimationDefinitions.PENGUIN_SWIM, ageInTicks, 1f);
+            }
+        } else {
+            PenguinEntity penguin = (PenguinEntity) entity;
+            boolean isGoingToWater = isMovingTowardsWater(penguin);
 
-	private void applyResurfacingPose(float ageInTicks) {
-		float tiltAngle = (float) Math.PI / 4.0f;
+            if (isGoingToWater && penguin.getDeltaMovement().horizontalDistance() > 0.1) {
+                this.applyWaterEntryPose(ageInTicks);
+            } else {
+                this.animateWalk(ModAnimationDefinitions.PENGUIN_WALK, limbSwing, limbSwingAmount, 2f, 2.5f);
+                this.animate(((PenguinEntity) entity).idleAnimationState, ModAnimationDefinitions.PENGUIN_IDLE, ageInTicks, 1f);
+            }
+        }
+    }
 
-		float oscillation = Mth.sin(ageInTicks * 0.1f) * 0.05f;
-		this.penguin.xRot = -tiltAngle + oscillation;
+    private boolean isNearWaterSurface(PenguinEntity penguin) {
+        return penguin.level().getBlockState(penguin.blockPosition().above()).isAir() ||
+                penguin.level().getBlockState(penguin.blockPosition().above(2)).isAir();
+    }
 
-		this.lw.zRot = -0.2f;
-		this.rw.zRot = 0.2f;
+    private boolean isMovingTowardsWater(PenguinEntity penguin) {
+        if (penguin.getNavigation().getTargetPos() == null) return false;
 
-		this.tail.xRot = 0.1f;
+        BlockPos targetPos = penguin.getNavigation().getTargetPos();
+        return penguin.level().getFluidState(targetPos).is(FluidTags.WATER) ||
+                penguin.level().getFluidState(targetPos.below()).is(FluidTags.WATER);
+    }
 
-		this.lf.xRot = 0.3f;
-		this.rf.xRot = 0.3f;
+    private void applyWaterEntryPose(float ageInTicks) {
+        float tiltAngle = (float) Math.PI / 4.0f;
 
-		float wingFlap = Mth.sin(ageInTicks * 0.3f) * 0.15f;
-		this.lw.xRot = wingFlap;
-		this.rw.xRot = wingFlap;
-	}
+        float oscillation = Mth.sin(ageInTicks * 0.15f) * 0.03f;
+        this.penguin.xRot = tiltAngle + oscillation;
 
-	private void applyHeadRotation(float pNetHeadYaw, float pHeadPitch, float pAgeInTicks) {
+        this.lw.zRot = -0.3f;
+        this.rw.zRot = 0.3f;
+        this.lw.xRot = -0.2f;
+        this.rw.xRot = -0.2f;
+
+        this.tail.xRot = -0.2f;
+
+        this.lf.xRot = -0.2f;
+        this.rf.xRot = -0.2f;
+    }
+
+    private void applyDivingPose(float ageInTicks) {
+        float tiltAngle = (float) Math.PI / 4.0f;
+
+        float oscillation = Mth.sin(ageInTicks * 0.1f) * 0.02f;
+        this.penguin.xRot = tiltAngle + oscillation;
+
+        this.lw.zRot = -0.1f;
+        this.rw.zRot = 0.1f;
+
+        float wingFlap = Mth.sin(ageInTicks * 0.4f) * 0.1f;
+        this.lw.xRot = wingFlap - 0.1f;
+        this.rw.xRot = wingFlap - 0.1f;
+
+        this.tail.xRot = -0.1f;
+
+        this.lf.xRot = -0.3f;
+        this.rf.xRot = -0.3f;
+    }
+
+    private void applyResurfacingPose(float ageInTicks) {
+        float tiltAngle = (float) Math.PI / 4.0f;
+
+        float oscillation = Mth.sin(ageInTicks * 0.1f) * 0.05f;
+        this.penguin.xRot = -tiltAngle + oscillation;
+
+        this.lw.zRot = -0.2f;
+        this.rw.zRot = 0.2f;
+
+        this.tail.xRot = 0.1f;
+
+        this.lf.xRot = 0.3f;
+        this.rf.xRot = 0.3f;
+
+        float wingFlap = Mth.sin(ageInTicks * 0.3f) * 0.15f;
+        this.lw.xRot = wingFlap;
+        this.rw.xRot = wingFlap;
+    }
+
+
+    private void applyHeadRotation(float pNetHeadYaw, float pHeadPitch, float pAgeInTicks) {
 		pNetHeadYaw = Mth.clamp(pNetHeadYaw, -30.0F, 30.0F);
 		pHeadPitch = Mth.clamp(pHeadPitch, -25.0F, 45.0F);
 
